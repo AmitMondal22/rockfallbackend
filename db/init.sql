@@ -1,0 +1,147 @@
+-- PostgreSQL Initialization Schema for Rockfall Platform
+
+CREATE TABLE IF NOT EXISTS organizations (
+  id VARCHAR(64) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  address TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS locations (
+  id VARCHAR(64) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  org_id VARCHAR(64) REFERENCES organizations(id) ON DELETE CASCADE,
+  description TEXT,
+  address TEXT,
+  lat FLOAT,
+  lng FLOAT,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS users (
+  id VARCHAR(64) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password VARCHAR(255) NOT NULL,
+  role VARCHAR(50) DEFAULT 'USER' CHECK (role IN ('SUPER_ADMIN', 'ORG_ADMIN', 'USER')),
+  org_id VARCHAR(64) REFERENCES organizations(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS assets (
+  id VARCHAR(64) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  org_id VARCHAR(64) REFERENCES organizations(id) ON DELETE CASCADE,
+  asset_type VARCHAR(50) DEFAULT 'FENCE_BARRIER',
+  status VARCHAR(50) DEFAULT 'OPERATIONAL',
+  coordinates JSONB,
+  specifications JSONB,
+  metadata JSONB,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS devices (
+  id VARCHAR(64) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  dev_eui VARCHAR(64) UNIQUE,
+  org_id VARCHAR(64) REFERENCES organizations(id) ON DELETE CASCADE,
+  location_id VARCHAR(64) REFERENCES locations(id) ON DELETE SET NULL,
+  location VARCHAR(255),
+  description TEXT,
+  lat FLOAT,
+  lng FLOAT,
+  status VARCHAR(50) DEFAULT 'ONLINE' CHECK (status IN ('ONLINE', 'OFFLINE', 'ALERT')),
+  battery FLOAT,
+  csq INT,
+  rated_load_kn FLOAT,
+  motion_g FLOAT DEFAULT 0.05,
+  peak_g FLOAT DEFAULT 0.20,
+  rock_peak_g FLOAT DEFAULT 1.50,
+  rock_dur_ms INT DEFAULT 200,
+  human_peak_max_g FLOAT DEFAULT 1.60,
+  human_dur_ms INT DEFAULT 500,
+  human_peaks INT DEFAULT 3,
+  threshold_version INT DEFAULT 1,
+  communication_type VARCHAR(50) DEFAULT 'HYBRID' CHECK (communication_type IN ('HTTP', 'LORAWAN', 'MQTT', 'HYBRID')),
+  asset_id VARCHAR(64) REFERENCES assets(id) ON DELETE SET NULL,
+  asset_position_pct FLOAT,
+  is_active BOOLEAN DEFAULT TRUE,
+  last_seen TIMESTAMP WITH TIME ZONE,
+  last_event JSONB,
+  last_restart_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS telemetry (
+  id BIGSERIAL PRIMARY KEY,
+  device_id VARCHAR(64) REFERENCES devices(id) ON DELETE CASCADE,
+  uid VARCHAR(64) NOT NULL,
+  battery FLOAT,
+  csq INT,
+  event_type VARCHAR(50) DEFAULT 'ROCKFALL',
+  peak_g FLOAT DEFAULT 0,
+  duration_ms INT DEFAULT 0,
+  peaks INT DEFAULT 0,
+  energy_g2 FLOAT DEFAULT 0,
+  mean_g FLOAT DEFAULT 0,
+  raw_payload JSONB,
+  source VARCHAR(50) DEFAULT 'HTTP' CHECK (source IN ('HTTP', 'LORAWAN', 'MQTT')),
+  timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS alert_rules (
+  id VARCHAR(64) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  org_id VARCHAR(64) REFERENCES organizations(id) ON DELETE CASCADE,
+  device_id VARCHAR(64) REFERENCES devices(id) ON DELETE CASCADE,
+  event_type VARCHAR(50) DEFAULT 'ROCKFALL',
+  min_peak_g FLOAT DEFAULT 1.50,
+  max_peak_g FLOAT,
+  min_dur_ms INT DEFAULT 100,
+  severity VARCHAR(50) DEFAULT 'CRITICAL' CHECK (severity IN ('INFO', 'WARNING', 'CRITICAL')),
+  enabled BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS alerts (
+  id VARCHAR(64) PRIMARY KEY,
+  rule_id VARCHAR(64) REFERENCES alert_rules(id) ON DELETE SET NULL,
+  device_id VARCHAR(64) REFERENCES devices(id) ON DELETE CASCADE,
+  org_id VARCHAR(64) REFERENCES organizations(id) ON DELETE CASCADE,
+  severity VARCHAR(50) DEFAULT 'CRITICAL',
+  event_type VARCHAR(50),
+  message TEXT NOT NULL,
+  trigger_data JSONB,
+  status VARCHAR(50) DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'ACKNOWLEDGED', 'RESOLVED')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS notification_logs (
+  id VARCHAR(64) PRIMARY KEY,
+  alert_id VARCHAR(64) REFERENCES alerts(id) ON DELETE CASCADE,
+  channel VARCHAR(50) DEFAULT 'EMAIL' CHECK (channel IN ('EMAIL', 'SMS', 'WHATSAPP')),
+  recipient VARCHAR(255) NOT NULL,
+  status VARCHAR(50) DEFAULT 'SENT',
+  message TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for optimal querying
+CREATE INDEX IF NOT EXISTS idx_telemetry_device_id ON telemetry(device_id);
+CREATE INDEX IF NOT EXISTS idx_telemetry_timestamp ON telemetry(timestamp);
+CREATE INDEX IF NOT EXISTS idx_alerts_device_id ON alerts(device_id);
+CREATE INDEX IF NOT EXISTS idx_alerts_status ON alerts(status);
+CREATE INDEX IF NOT EXISTS idx_devices_location_id ON devices(location_id);
+CREATE INDEX IF NOT EXISTS idx_locations_org_id ON locations(org_id);
