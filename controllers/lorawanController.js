@@ -67,6 +67,19 @@ const handleLoRaWANWebhook = async (req, res, next) => {
       timestamp: new Date()
     });
 
+    // Update Device record in database
+    device.last_seen = telemetry.timestamp;
+    if (!isNaN(battery)) device.battery = battery;
+    if (!isNaN(csq)) device.csq = csq;
+    device.last_event = {
+      type: event_type,
+      peak_g,
+      duration_ms,
+      timestamp: telemetry.timestamp
+    };
+    device.status = 'ONLINE';
+    await device.save();
+
     // Real-time WebSocket Broadcast
     broadcast({
       type: 'device_update',

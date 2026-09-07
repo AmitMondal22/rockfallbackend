@@ -1,8 +1,16 @@
 const { Device, Telemetry, Organization, Location, Asset, Project } = require('../db/models');
+const { Op } = require('sequelize');
 
-const formatDevice = (device) => {
+const formatDevice = (device, latestTelemetry) => {
   if (!device) return null;
   const plain = typeof device.toJSON === 'function' ? device.toJSON() : device;
+  const lt = latestTelemetry || null;
+
+  const rawLastSeen = plain.last_seen || (lt && lt.timestamp) || null;
+  const rawBattery = (plain.battery !== null && plain.battery !== undefined) ? Number(plain.battery) : (lt && lt.battery !== undefined && lt.battery !== null ? Number(lt.battery) : null);
+  const rawCsq = (plain.csq !== null && plain.csq !== undefined) ? Number(plain.csq) : (lt && lt.csq !== undefined && lt.csq !== null ? Number(lt.csq) : null);
+  const rawLastEvent = plain.last_event || (lt ? { type: lt.event_type, peak_g: lt.peak_g, duration_ms: lt.duration_ms, timestamp: lt.timestamp } : null);
+
   return {
     ...plain,
     _id: plain.id,
@@ -15,12 +23,14 @@ const formatDevice = (device) => {
     project: plain.project || null,
     lat: plain.lat !== null && plain.lat !== undefined ? Number(plain.lat) : null,
     lng: plain.lng !== null && plain.lng !== undefined ? Number(plain.lng) : null,
-    battery: plain.battery !== null && plain.battery !== undefined ? Number(plain.battery) : null,
-    csq: plain.csq !== null && plain.csq !== undefined ? Number(plain.csq) : null,
+    battery: rawBattery,
+    csq: rawCsq,
     ratedLoadKn: plain.rated_load_kn !== null && plain.rated_load_kn !== undefined ? Number(plain.rated_load_kn) : null,
     isActive: plain.is_active !== undefined ? plain.is_active : true,
-    lastSeen: plain.last_seen || plain.updated_at || plain.created_at,
-    lastEvent: plain.last_event || null,
+    lastSeen: rawLastSeen,
+    last_seen: rawLastSeen,
+    lastEvent: rawLastEvent,
+    last_event: rawLastEvent,
     lastRestartAt: plain.last_restart_at || null,
     thresholdConfig: {
       MOTION_G: plain.motion_g,
@@ -71,7 +81,24 @@ const getAllDevices = async (req, res, next) => {
       order: [['created_at', 'DESC']]
     });
 
-    const formatted = devices.map(formatDevice);
+    const deviceIds = devices.map(d => d.id);
+    const latestTelemetryMap = new Map();
+    if (deviceIds.length > 0) {
+      const latestTelemetries = await Telemetry.findAll({
+        where: { device_id: { [Op.in]: deviceIds } },
+        order: [['timestamp', 'DESC']],
+        limit: 5000,
+        raw: true
+      }).catch(() => []);
+
+      latestTelemetries.forEach(t => {
+        if (!latestTelemetryMap.has(t.device_id)) {
+          latestTelemetryMap.set(t.device_id, t);
+        }
+      });
+    }
+
+    const formatted = devices.map(d => formatDevice(d, latestTelemetryMap.get(d.id)));
     return res.json({ success: true, count: formatted.length, devices: formatted });
   } catch (error) {
     next(error);
@@ -93,7 +120,13 @@ const getDeviceById = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Device not found.' });
     }
 
-    return res.json({ success: true, device: formatDevice(device) });
+    const latestTelemetry = await Telemetry.findOne({
+      where: { device_id: device.id },
+      order: [['timestamp', 'DESC']],
+      raw: true
+    }).catch(() => null);
+
+    return res.json({ success: true, device: formatDevice(device, latestTelemetry) });
   } catch (error) {
     next(error);
   }

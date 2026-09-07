@@ -51,6 +51,19 @@ const handleHttpGetTelemetry = async (req, res, next) => {
       timestamp: new Date()
     });
 
+    // Update Device record in database
+    device.last_seen = telemetry.timestamp;
+    if (!isNaN(parsedBattery)) device.battery = parsedBattery;
+    if (!isNaN(parsedCsq)) device.csq = parsedCsq;
+    device.last_event = {
+      type: eventType,
+      peak_g: parsedPeakG,
+      duration_ms: parsedDurMs,
+      timestamp: telemetry.timestamp
+    };
+    device.status = 'ONLINE';
+    await device.save();
+
     // Real-time WebSocket Push
     broadcast({
       type: 'device_update',
