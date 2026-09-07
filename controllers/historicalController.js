@@ -2,7 +2,10 @@ const { Telemetry, Alert, Device, Asset, sequelize } = require('../db/models');
 const { Op } = require('sequelize');
 
 const parseRangeDate = (range, fromDate, toDate) => {
-  if (fromDate) return new Date(fromDate);
+  if (fromDate) {
+    const d = new Date(fromDate);
+    if (!isNaN(d.getTime())) return d;
+  }
   const now = new Date();
   if (range === 'all' || range === 'ALL') return new Date(0);
   const num = parseInt(range) || 24;
@@ -91,7 +94,11 @@ const getAnalyticsSummary = async (req, res, next) => {
         timeBuckets.push({ key: d.toISOString().slice(0, 13), label, count: 0 });
       }
       telemetries.forEach(t => {
-        const key = new Date(t.timestamp).toISOString().slice(0, 13);
+        const rawDate = t.timestamp || t.created_at || t.createdAt;
+        if (!rawDate) return;
+        const d = new Date(rawDate);
+        if (isNaN(d.getTime())) return;
+        const key = d.toISOString().slice(0, 13);
         const bucket = timeBuckets.find(b => b.key === key);
         if (bucket) bucket.count++;
       });
@@ -102,7 +109,11 @@ const getAnalyticsSummary = async (req, res, next) => {
         timeBuckets.push({ key: d.toISOString().slice(0, 10), label, count: 0 });
       }
       telemetries.forEach(t => {
-        const key = new Date(t.timestamp).toISOString().slice(0, 10);
+        const rawDate = t.timestamp || t.created_at || t.createdAt;
+        if (!rawDate) return;
+        const d = new Date(rawDate);
+        if (isNaN(d.getTime())) return;
+        const key = d.toISOString().slice(0, 10);
         const bucket = timeBuckets.find(b => b.key === key);
         if (bucket) bucket.count++;
       });
@@ -113,7 +124,10 @@ const getAnalyticsSummary = async (req, res, next) => {
         timeBuckets.push({ key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, label, count: 0 });
       }
       telemetries.forEach(t => {
-        const dt = new Date(t.timestamp);
+        const rawDate = t.timestamp || t.created_at || t.createdAt;
+        if (!rawDate) return;
+        const dt = new Date(rawDate);
+        if (isNaN(dt.getTime())) return;
         const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
         const bucket = timeBuckets.find(b => b.key === key);
         if (bucket) bucket.count++;
@@ -427,8 +441,12 @@ const getStats = async (req, res, next) => {
     const eventFreqMap = new Map();
 
     telemetries.forEach(t => {
-      const timeMs = new Date(t.timestamp).getTime();
+      const rawDate = t.timestamp || t.created_at || t.createdAt;
+      if (!rawDate) return;
+      const timeMs = new Date(rawDate).getTime();
+      if (isNaN(timeMs)) return;
       const bucketMs = Math.floor(timeMs / windowMs) * windowMs;
+      if (isNaN(bucketMs)) return;
       const bucketIso = new Date(bucketMs).toISOString();
 
       const currentPeak = peakGMap.get(bucketIso) || 0;
@@ -457,8 +475,12 @@ const getStats = async (req, res, next) => {
     });
 
     alerts.forEach(a => {
-      const timeMs = new Date(a.created_at || a.createdAt).getTime();
+      const rawDate = a.created_at || a.createdAt || a.timestamp || a.created_time;
+      if (!rawDate) return;
+      const timeMs = new Date(rawDate).getTime();
+      if (isNaN(timeMs)) return;
       const bucketMs = Math.floor(timeMs / windowMs) * windowMs;
+      if (isNaN(bucketMs)) return;
       const bucketIso = new Date(bucketMs).toISOString();
       alertMap.set(bucketIso, (alertMap.get(bucketIso) || 0) + 1);
 
@@ -496,7 +518,11 @@ const getStats = async (req, res, next) => {
       time,
       _time: time,
       ...data
-    })).sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+    })).sort((a, b) => {
+      const aTime = new Date(a.time).getTime() || 0;
+      const bTime = new Date(b.time).getTime() || 0;
+      return aTime - bTime;
+    });
 
     return res.json({
       success: true,
@@ -603,7 +629,7 @@ const getAlerts = async (req, res, next) => {
         timeFilter[Op.lte] = to;
       }
       whereClause.created_at = timeFilter;
-    } else if (range && range !== 'custom') {
+    } else if (range && range !== 'custom' && range !== 'all') {
       whereClause.created_at = { [Op.gte]: parseRangeDate(range) };
     }
 
@@ -635,7 +661,7 @@ const exportCsv = async (req, res, next) => {
         timeFilter[Op.lte] = to;
       }
       whereClause.timestamp = timeFilter;
-    } else if (range) {
+    } else if (range && range !== 'custom' && range !== 'all') {
       whereClause.timestamp = { [Op.gte]: parseRangeDate(range) };
     }
 
@@ -814,17 +840,23 @@ const generateReport = async (req, res, next) => {
       else eventTypeCounts.OTHER++;
 
       // Daily timeline aggregation
-      const dayKey = new Date(t.timestamp).toISOString().slice(0, 10);
-      if (!dailyMap.has(dayKey)) {
-        dailyMap.set(dayKey, { date: dayKey, total: 0, rockfall: 0, motion: 0, human: 0, alerts: 0, maxPeakG: 0, energy: 0 });
+      const rawDate = t.timestamp || t.created_at || t.createdAt;
+      if (rawDate) {
+        const dt = new Date(rawDate);
+        if (!isNaN(dt.getTime())) {
+          const dayKey = dt.toISOString().slice(0, 10);
+          if (!dailyMap.has(dayKey)) {
+            dailyMap.set(dayKey, { date: dayKey, total: 0, rockfall: 0, motion: 0, human: 0, alerts: 0, maxPeakG: 0, energy: 0 });
+          }
+          const day = dailyMap.get(dayKey);
+          day.total++;
+          if (g > day.maxPeakG) day.maxPeakG = g;
+          day.energy += energy;
+          if (evtType.includes('ROCK')) day.rockfall++;
+          else if (evtType.includes('MOTION')) day.motion++;
+          else if (evtType.includes('HUMAN')) day.human++;
+        }
       }
-      const day = dailyMap.get(dayKey);
-      day.total++;
-      if (g > day.maxPeakG) day.maxPeakG = g;
-      day.energy += energy;
-      if (evtType.includes('ROCK')) day.rockfall++;
-      else if (evtType.includes('MOTION')) day.motion++;
-      else if (evtType.includes('HUMAN')) day.human++;
 
       // Device aggregation
       const devId = t.device_id;
@@ -851,9 +883,15 @@ const generateReport = async (req, res, next) => {
       if (deviceStatsMap.has(devId)) {
         deviceStatsMap.get(devId).alertCount++;
       }
-      const dayKey = new Date(a.created_at || a.createdAt).toISOString().slice(0, 10);
-      if (dailyMap.has(dayKey)) {
-        dailyMap.get(dayKey).alerts++;
+      const rawDate = a.created_at || a.createdAt || a.timestamp;
+      if (rawDate) {
+        const dt = new Date(rawDate);
+        if (!isNaN(dt.getTime())) {
+          const dayKey = dt.toISOString().slice(0, 10);
+          if (dailyMap.has(dayKey)) {
+            dailyMap.get(dayKey).alerts++;
+          }
+        }
       }
     });
 
