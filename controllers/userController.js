@@ -99,9 +99,16 @@ const createUser = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'User email already exists.' });
     }
 
-    const effectiveOrgId = organizationId || org_id || req.user.org_id || null;
-    const effectiveProjectId = projectId || project_id || req.user.project_id || null;
-    const effectiveLocationId = locationId || location_id || req.user.location_id || null;
+    let effectiveOrgId = organizationId || org_id || req.user.org_id || null;
+    if (req.user.role === 'ORG_ADMIN') {
+      if (role === 'SUPER_ADMIN') {
+        return res.status(403).json({ success: false, message: 'Org Admin cannot create Super Admin users.' });
+      }
+      effectiveOrgId = req.user.org_id;
+    }
+
+    const effectiveProjectId = projectId || project_id || (req.user.role === 'PROJECT_ADMIN' ? req.user.project_id : null);
+    const effectiveLocationId = locationId || location_id || (['LOCATION_USER', 'SITE_USER'].includes(req.user.role) ? req.user.location_id : null);
 
     const userId = `usr_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
     const user = await User.create({
@@ -142,6 +149,10 @@ const updateUser = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'User not found.' });
     }
 
+    if (req.user.role === 'ORG_ADMIN' && user.org_id !== req.user.org_id) {
+      return res.status(403).json({ success: false, message: 'Access forbidden. You can only update users within your organization.' });
+    }
+
     const {
       name,
       email,
@@ -160,11 +171,17 @@ const updateUser = async (req, res, next) => {
       password
     } = req.body;
 
+    if (req.user.role === 'ORG_ADMIN' && role === 'SUPER_ADMIN') {
+      return res.status(403).json({ success: false, message: 'Org Admin cannot assign Super Admin role.' });
+    }
+
     if (name) user.name = name;
     if (email) user.email = email;
     if (role) user.role = role;
-    if (org_id !== undefined || organizationId !== undefined) {
-      user.org_id = org_id !== undefined ? org_id : organizationId;
+    if (req.user.role === 'SUPER_ADMIN') {
+      if (org_id !== undefined || organizationId !== undefined) {
+        user.org_id = org_id !== undefined ? org_id : organizationId;
+      }
     }
     if (project_id !== undefined || projectId !== undefined) {
       user.project_id = project_id !== undefined ? project_id : projectId;
@@ -213,7 +230,10 @@ const deleteUser = async (req, res, next) => {
     }
 
     // Role safety: Only Super Admin or Org Admin of same org can delete users
-    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ORG_ADMIN' && req.user.role !== 'PROJECT_ADMIN') {
+    if (req.user.role === 'ORG_ADMIN' && user.org_id !== req.user.org_id) {
+      return res.status(403).json({ success: false, message: 'Access forbidden. You can only delete users within your organization.' });
+    }
+    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ORG_ADMIN') {
       return res.status(403).json({ success: false, message: 'Access forbidden. Insufficient permissions to delete users.' });
     }
 

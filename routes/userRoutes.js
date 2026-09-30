@@ -11,6 +11,6 @@ router.get('/', authorize('SUPER_ADMIN', 'ORG_ADMIN'), userController.getAllUser
 router.get('/:id', userController.getUserById);
 router.post('/', authorize('SUPER_ADMIN', 'ORG_ADMIN'), validate(createUserSchema), userController.createUser);
 router.put('/:id', authorize('SUPER_ADMIN', 'ORG_ADMIN'), validate(updateUserSchema), userController.updateUser);
-router.delete('/:id', authorize('SUPER_ADMIN'), userController.deleteUser);
+router.delete('/:id', authorize('SUPER_ADMIN', 'ORG_ADMIN'), userController.deleteUser);
 
 module.exports = router;

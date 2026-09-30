@@ -156,15 +156,27 @@ const updateAsset = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Asset not found.' });
     }
 
-    const { name, asset_type, status, location_id, locationId, project_id, projectId, coordinates, specifications, metadata } = req.body;
+    const { name, org_id, organizationId, asset_type, status, location_id, locationId, project_id, projectId, coordinates, specifications, metadata, description } = req.body;
 
     if (name !== undefined) asset.name = name;
+    if (org_id !== undefined || organizationId !== undefined) asset.org_id = org_id || organizationId;
     if (asset_type !== undefined) asset.asset_type = asset_type;
     if (status !== undefined) asset.status = status;
     if (location_id !== undefined || locationId !== undefined) asset.location_id = location_id || locationId;
     if (project_id !== undefined || projectId !== undefined) asset.project_id = project_id || projectId;
     if (coordinates !== undefined) asset.coordinates = coordinates;
-    if (specifications !== undefined) asset.specifications = specifications;
+    if (specifications !== undefined) {
+      asset.specifications = {
+        ...(asset.specifications || {}),
+        ...specifications,
+        ...(description !== undefined ? { description } : {})
+      };
+    } else if (description !== undefined) {
+      asset.specifications = {
+        ...(asset.specifications || {}),
+        description
+      };
+    }
     if (metadata !== undefined) asset.metadata = metadata;
 
     await asset.save();
