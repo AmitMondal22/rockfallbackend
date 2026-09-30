@@ -17,6 +17,10 @@ const Organization = sequelize.define('Organization', {
   address: {
     type: DataTypes.TEXT,
     allowNull: true
+  },
+  logo_url: {
+    type: DataTypes.TEXT,
+    allowNull: true
   }
 }, {
   tableName: 'organizations',

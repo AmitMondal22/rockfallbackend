@@ -21,3 +21,8 @@ yarn-error.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# Uploaded files
+uploads/**/*
+!uploads/**/.gitkeep
+!uploads/**/

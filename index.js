@@ -45,6 +45,19 @@ app.get('/health', (req, res) => {
 const { handleHttpGetTelemetry } = require('./controllers/telemetryController');
 app.get('/api/new/4G2', handleHttpGetTelemetry);
 
+const path = require('path');
+
+// Ensure uploads directories exist
+const uploadDir = path.join(__dirname, 'uploads', 'logos');
+const fs = require('fs');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Serve static uploads
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Mount Central API Routes
 app.use('/api', routes);
 
