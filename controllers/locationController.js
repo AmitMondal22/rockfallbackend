@@ -104,8 +104,8 @@ const createLocation = async (req, res, next) => {
     const location = await Location.create({
       id: locId,
       name,
-      org_id: org_id || organizationId || (req.user ? req.user.org_id : 'org_default'),
-      project_id: project_id || projectId || 'prj_kuppavalasa',
+      org_id: org_id || organizationId || (req.user ? req.user.org_id : null),
+      project_id: project_id || projectId || null,
       description: description || '',
       address: address || '',
       lat: lat !== undefined && lat !== null && lat !== '' ? parseFloat(lat) : null,

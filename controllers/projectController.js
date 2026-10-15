@@ -91,8 +91,10 @@ const getProjectById = async (req, res, next) => {
 
 const createProject = async (req, res, next) => {
   try {
-    const { name, org_id, description, status, client_name, start_date, end_date } = req.body;
-    const orgId = org_id || req.user.org_id || 'org_default';
+    const orgId = org_id || (req.user ? req.user.org_id : null);
+    if (!orgId) {
+      return res.status(400).json({ success: false, message: 'Organization ID (org_id) is required to create a project.' });
+    }
 
     const projectId = `prj_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
     const project = await Project.create({

@@ -133,8 +133,8 @@ const createAsset = async (req, res, next) => {
     const asset = await Asset.create({
       id: assetId,
       name,
-      org_id: org_id || (req.user ? req.user.org_id : 'org_default'),
-      project_id: project_id || projectId || 'prj_kuppavalasa',
+      org_id: org_id || (req.user ? req.user.org_id : null),
+      project_id: project_id || projectId || null,
       location_id: location_id || locationId || null,
       asset_type: asset_type || 'FENCE_BARRIER',
       coordinates: coordinates || [],

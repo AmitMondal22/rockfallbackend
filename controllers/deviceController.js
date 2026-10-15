@@ -151,7 +151,7 @@ const createDevice = async (req, res, next) => {
       return res.status(400).json({ success: false, message: `Device with ID ${deviceId} already exists. Please choose another unique hardware ID.` });
     }
 
-    let finalOrgId = org_id || organizationId || (req.user ? req.user.org_id : 'org_default');
+    let finalOrgId = org_id || organizationId || (req.user ? req.user.org_id : null);
     let finalLocationId = location_id || locationId || null;
     let finalProjectId = project_id || projectId || null;
     const finalAssetId = asset_id || assetId || null;

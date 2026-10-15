@@ -81,39 +81,22 @@ const startServer = async () => {
       console.log('[Sequelize] Basic model synchronization completed.');
     }
 
-    // Seed default organization and initial admin if not existing
-    const adminEmail = process.env.INITIAL_ADMIN_EMAIL || 'admin@rockfall.com';
-    const adminPassword = process.env.INITIAL_ADMIN_PASSWORD || 'admin123';
-    
-    let defaultOrg = await Organization.findByPk('org_default');
-    if (!defaultOrg) {
-      defaultOrg = await Organization.create({
-        id: 'org_default',
-        name: 'RockFall Main Organization',
-        description: 'Primary organization for RockFall monitoring system'
-      });
-      console.log('[Seed] Created default organization (org_default).');
+    // Create initial super admin only if specified and not already present
+    const adminEmail = process.env.INITIAL_ADMIN_EMAIL;
+    const adminPassword = process.env.INITIAL_ADMIN_PASSWORD;
+    if (adminEmail && adminPassword) {
+      const existingAdmin = await User.findOne({ where: { email: adminEmail } });
+      if (!existingAdmin) {
+        await User.create({
+          id: `usr_admin_${Date.now()}`,
+          name: 'Super Admin',
+          email: adminEmail,
+          password: adminPassword,
+          role: 'SUPER_ADMIN'
+        });
+        console.log(`[Admin] Initial Super Admin account created: ${adminEmail}`);
+      }
     }
-
-    // Seed default Project
-    let defaultProject = await Project.findByPk('prj_kuppavalasa');
-    if (!defaultProject) {
-      defaultProject = await Project.create({
-        id: 'prj_kuppavalasa',
-        name: 'Kuppavalasa Slope Stabilization Project',
-        org_id: 'org_default',
-        description: 'Comprehensive rockfall detection and slope stabilization monitoring for Kuppavalasa railway and roadway corridor.',
-        status: 'ACTIVE',
-        client_name: 'Infrastructure & Railway Division',
-        start_date: new Date('2026-01-01')
-      });
-      console.log('[Seed] Created default project (prj_kuppavalasa).');
-    }
-
-    // Link existing location to project if not set
-    await Location.update({ project_id: 'prj_kuppavalasa', org_id: 'org_default' }, { where: { project_id: null } });
-    await Asset.update({ project_id: 'prj_kuppavalasa', org_id: 'org_default' }, { where: { project_id: null } });
-    await Device.update({ project_id: 'prj_kuppavalasa', org_id: 'org_default' }, { where: { project_id: null } });
 
     server.listen(PORT, () => {
       console.log(`======================================================`);
