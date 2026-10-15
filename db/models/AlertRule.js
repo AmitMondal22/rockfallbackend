@@ -18,6 +18,26 @@ const AlertRule = sequelize.define('AlertRule', {
     type: DataTypes.STRING(64),
     allowNull: true
   },
+  device_ids: {
+    type: DataTypes.JSONB,
+    defaultValue: []
+  },
+  recipient_emails: {
+    type: DataTypes.JSONB,
+    defaultValue: []
+  },
+  conditions: {
+    type: DataTypes.JSONB,
+    defaultValue: []
+  },
+  condition_logic: {
+    type: DataTypes.STRING(10),
+    defaultValue: 'ALL'
+  },
+  actions: {
+    type: DataTypes.JSONB,
+    defaultValue: ['EMAIL']
+  },
   event_type: {
     type: DataTypes.STRING(50),
     defaultValue: 'ROCKFALL'
