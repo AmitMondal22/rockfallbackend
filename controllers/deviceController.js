@@ -156,7 +156,7 @@ const createDevice = async (req, res, next) => {
     let finalProjectId = project_id || projectId || null;
     const finalAssetId = asset_id || assetId || null;
 
-    // If attached to a barrier asset, auto-resolve location and project if not provided
+    // If attached to a Asset, auto-resolve location and project if not provided
     if (finalAssetId) {
       const asset = await Asset.findByPk(finalAssetId);
       if (asset) {

@@ -10,7 +10,7 @@ router.use(authenticate);
 router.get('/list', assetController.getInventory);
 router.get('/', assetController.getInventory);
 
-// Create new barrier asset
+// Create new Asset
 router.post('/', authorize('SUPER_ADMIN', 'ORG_ADMIN', 'PROJECT_ADMIN', 'PROJECT_USER', 'LOCATION_USER', 'SITE_USER'), assetController.createAsset);
 
 // Device management under asset

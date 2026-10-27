@@ -51,7 +51,7 @@ Asset.belongsTo(Location, { foreignKey: 'location_id', as: 'location' });
 Location.hasMany(Device, { foreignKey: 'location_id', as: 'devices' });
 Device.belongsTo(Location, { foreignKey: 'location_id', as: 'locationRef' });
 
-// 4. Asset / Barrier level
+// 4. Asset / Asset level
 Asset.hasMany(Device, { foreignKey: 'asset_id', as: 'devices' });
 Device.belongsTo(Asset, { foreignKey: 'asset_id', as: 'asset' });
 

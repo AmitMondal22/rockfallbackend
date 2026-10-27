@@ -194,7 +194,7 @@ const deleteAsset = async (req, res, next) => {
     if (req.user && !allowedRoles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
-        message: 'Access forbidden. Site and Location users cannot delete assets. Only Project, Organization, or Super Admins can remove barrier assets.'
+        message: 'Access forbidden. Site and Location users cannot delete assets. Only Project, Organization, or Super Admins can remove Assets.'
       });
     }
 

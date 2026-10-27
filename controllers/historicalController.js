@@ -174,7 +174,7 @@ const getAnalyticsSummary = async (req, res, next) => {
       const assetTelemetries = telemetries.filter(t => attachedDeviceIds.includes(t.device_id));
       const maxPeakG = assetTelemetries.reduce((max, t) => Math.max(max, parseFloat(t.peak_g || 0)), 0);
       
-      // Calculate current equivalent load in kN based on peak G and barrier parameters
+      // Calculate current equivalent load in kN based on peak G and Asset parameters
       const currentLoadKn = maxPeakG > 0 ? Math.min(ratedLoadKn, (maxPeakG / 8.0) * ratedLoadKn) : 0;
       const loadPct = ratedLoadKn > 0 ? Math.min(100, Math.round((currentLoadKn / ratedLoadKn) * 100)) : 0;
       
@@ -912,7 +912,7 @@ const generateReport = async (req, res, next) => {
       avgBatteryPct: batteryCount > 0 ? Math.round(sumBattery / batteryCount) : null,
       avgCsq: csqCount > 0 ? Math.round(sumCsq / csqCount) : null,
       maxLoadKn: null,
-      structuralLoadStatus: 'Nominal baseline across registered barrier sections',
+      structuralLoadStatus: 'Nominal baseline across registered Asset sections',
       sizeCounts
     };
 

@@ -114,7 +114,7 @@ const generateAlertHtml = (alert, device, ruleName) => {
 
         <!-- Safety Notice Box -->
         <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 14px 18px; border-radius: 0 8px 8px 0; margin-bottom: 24px; font-size: 13px; color: #991b1b; line-height: 1.5;">
-          <strong>Action Required:</strong> Immediate geotechnical inspection of the barrier and catchment zone is recommended. Verify fence mesh tension and anchor integrity.
+          <strong>Action Required:</strong> Immediate geotechnical inspection of the Asset and catchment zone is recommended. Verify fence mesh tension and anchor integrity.
         </div>
 
         <p style="margin: 0; font-size: 12px; color: #9ca3af; text-align: center; border-top: 1px solid #f3f4f6; padding-top: 20px;">
